@@ -1,60 +1,136 @@
 <!doctype html>
 <html>
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-        <title>Speed Up Your Tests with setUpTestData</title>
+    <title>Speed Up Your Tests with setUpTestData</title>
 
-        <link rel="stylesheet" href="dist/reset.css">
-        <link rel="stylesheet" href="dist/reveal.css">
-        <link rel="stylesheet" href="dist/theme/django.css" id="theme">
+    <link rel="stylesheet" href="dist/reset.css">
+    <link rel="stylesheet" href="dist/reveal.css">
+    <link rel="stylesheet" href="dist/theme/django.css" id="theme">
 
-        <!-- <link rel="stylesheet" href="css/theme/django.css"> -->
+    <!-- <link rel="stylesheet" href="css/theme/django.css"> -->
 
-        <!-- Theme used for syntax highlighted code -->
-        <link rel="stylesheet" href="plugin/highlight/monokai.css" id="highlight-theme">
+    <!-- Theme used for syntax highlighted code -->
+    <link rel="stylesheet" href="plugin/highlight/monokai.css" id="highlight-theme">
 
-        <!-- Printing and PDF exports -->
-        <script>
-            var link = document.createElement('link');
-            link.rel = 'stylesheet';
-            link.type = 'text/css';
-            link.href = window.location.search.match(/print-pdf/gi) ? 'css/print/pdf.css' : 'css/print/paper.css';
-            document.getElementsByTagName('head')[0].appendChild(link);
-        </script>
-    </head>
-    <body>
-        <div class="reveal">
-            <div class="slides">
+    <!-- Printing and PDF exports -->
+    <script>
+        var link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = window.location.search.match(/print-pdf/gi) ? 'css/print/pdf.css' : 'css/print/paper.css';
+        document.getElementsByTagName('head')[0].appendChild(link);
+    </script>
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
 
 <section>
-    <h1>Speed Up Your Tests with setUpTestData</h1>
-    <h2>Adam Johnson</h2>
+  <h1>Speed Up Your Tests with setUpTestData</h1>
+  <h2>Adam Johnson</h2>
 </section>
 
 <section>
-    <h2>Five parts</h2>
-    <ol>
-        <li>unittest’s <code>setUp*</code> &amp; <code>tearDown*</code> methods</li>
-        <li>Django’s unittest extensions</li>
-        <li><code>setUpTestData()</code></li>
-        <li>Django 3.2’s <code>setUpTestData()</code> isolation</li>
-        <li>How to convert a <code>TestCase</code> to use <code>setUpTestData()</code></li>
-    </ol>
+  <h2>Five part talk</h2>
+  <ol>
+    <li>unittest’s <code>setUp*</code> &amp; <code>tearDown*</code> methods</li>
+    <li>Django’s unittest extensions</li>
+    <li><code>setUpTestData()</code></li>
+    <li>Django 3.2’s <code>setUpTestData()</code> isolation</li>
+    <li>How to convert a <code>TestCase</code> to use <code>setUpTestData()</code></li>
+  </ol>
 </section>
 
 <section>
-    <h2>1. unittest’s <code>setUp*</code> &amp; <code>tearDown*</code> methods</h2>
+  <h2>1. unittest’s <code>setUp*</code> &amp; <code>tearDown*</code> methods</h2>
 </section>
 
-<!--
-* how setup, teardown, setupclass, and teardown class work
-    * setup
-    * teardown -> addcleanup
-    * setupclass -> no class-level cleanup (much rarer)
-    * diagram of lifecycle
--->
+<section>
+  <ul>
+    <li>Per-test: <code>setUp()</code>, <code>tearDown()</code></li>
+    <li>Per-<code>TestCase</code>: <code>setUpClass()</code>, <code>tearDownClass()</code></li>
+  </ul>
+</section>
+
+<section>
+  <pre><code class="language-python">class MyTests(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.conn = acme.connect()
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        cls.conn.close()
+
+    def setUp(self):
+        super().setUp()
+        self.user = make_user(self.conn)
+
+    def tearDown(self):
+        self.user.delete()
+        super().tearDown()
+</code></pre>
+</section>
+
+<section>
+  <p><em>Robust use:</em></p>
+  <pre><code class="language-python">class MyTests(TestCase):
+  def setUp(self):
+      super().setUp()
+      self.user = make_user(self.conn)
+
+  def tearDown(self):
+      if hasattr(self, "user"):
+          self.user.delete()
+      super().tearDown()
+</code></pre>
+</section>
+
+<section>
+  <p><em>...or:</em></p>
+  <ul>
+    <li><code>self.addCleanup(func)</code></li>
+    <li>Python 3.8+: <code>cls.addClassCleanup(func)</code></li>
+  </ul>
+</section>
+
+<section>
+  <pre><code class="language-python">class MyTests(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.conn = acme.connect()
+        self.addClassCleanup(cls.conn.close)
+
+    def setUp(self):
+        super().setUp()
+        self.user = make_user(self.conn)
+        self.addCleanup(self.user.delete)
+</code></pre>
+</section>
+
+<section>
+  <h3><code>TestCase</code> lifecycle</h3>
+  <ol>
+    <li><code>setUpClass()</code></li>
+    <li>
+      <em>Per test:</em>
+      <ol>
+        <li><code>setUp()</code></li>
+        <li><em>test</em></li>
+        <li><code>tearDown()</code></li>
+        <li><code>addCleanup()</code> functions</li>
+      </ol>
+    </li>
+    <li><code>tearDownClass()</code></li>
+    <li><code>addClassCleanup()</code> functions</li>
+  </ol>
+</section>
 
 <section>
     <h2>2. Django’s unittest extensions</h2>
@@ -72,7 +148,7 @@
 -->
 
 <section>
-    <h2>3. <code>setUpTestData()</code></h2>
+  <h2>3. <code>setUpTestData()</code></h2>
 </section>
 
 <!--
@@ -86,7 +162,7 @@
 -->
 
 <section>
-    <h2>4. Django 3.2’s <code>setUpTestData()</code> isolation</h2>
+  <h2>4. Django 3.2’s <code>setUpTestData()</code> isolation</h2>
 </section>
 
 <!--
@@ -96,18 +172,18 @@
 -->
 
 <section>
-    <h2>5. How to convert a <code>TestCase</code> to use <code>setUpTestData()</code></h2>
+  <h2>5. How to convert a <code>TestCase</code> to use <code>setUpTestData()</code></h2>
 </section>
 
 <section>
-    <ul>
-        <li>Four steps</li>
-        <li>See blog post: <strong>How to convert a TestCase from setUp() to setUpTestData()</strong></li>
-    </ul>
+  <ul>
+    <li>Four steps</li>
+    <li>See blog post: <strong>How to convert a TestCase from setUp() to setUpTestData()</strong></li>
+  </ul>
 </section>
 
 <section>
-        <pre><code class="language-python">class IndexTests(TestCase):
+  <pre><code class="language-python">class IndexTests(TestCase):
     def setUp(self):
         self.book = Book.objects.create(title="1984")
         self.user = User.objects.create_user(
@@ -125,12 +201,12 @@
 </section>
 
 <section>
-    <h2>Step 0. Install django-testdata on Django &lt; 3.2</h2>
+  <h2>Step 0. Install django-testdata on Django &lt; 3.2</h2>
 </section>
 
 <section>
-    <h2>Step 1. Run the target test case</h2>
-        <pre><code class="language-console">$ ./manage.py test --keepdb example.core.tests.IndexTests
+  <h2>Step 1. Run the target test case</h2>
+  <pre><code class="language-console">$ ./manage.py test --keepdb example.core.tests.IndexTests
 Using existing test database for alias 'default'...
 System check identified no issues (0 silenced).
 ..
@@ -143,8 +219,8 @@ Preserving test database for alias 'default'...
 </section>
 
 <section>
-    <h2>Step 2. Add a stub <code>setUpTestData()</code></h2>
-        <pre><code class="language-diff"> class IndexTests(TestCase):
+  <h2>Step 2. Add a stub <code>setUpTestData()</code></h2>
+  <pre><code class="language-diff"> class IndexTests(TestCase):
 +    @classmethod
 +    def setUpTestData(cls):
 +
@@ -155,8 +231,8 @@ Preserving test database for alias 'default'...
 </section>
 
 <section>
-    <p>On Django &lt; 3.2:</p>
-        <pre><code class="language-diff">+from testdata import wrap_testdata
+  <p>On Django &lt; 3.2:</p>
+  <pre><code class="language-diff">+from testdata import wrap_testdata
 
  from example.core.models import Book
 
@@ -173,11 +249,11 @@ Preserving test database for alias 'default'...
 </section>
 
 <section>
-    <h2>Step 3. Move data creation from <code>setUp()</code> to <code>setUpTestData()</code></h2>
+  <h2>Step 3. Move data creation from <code>setUp()</code> to <code>setUpTestData()</code></h2>
 </section>
 
 <section>
-        <pre><code class="language-diff">class IndexTests(TestCase):
+  <pre><code class="language-diff">class IndexTests(TestCase):
      @classmethod
      def setUpTestData(cls):
 +        cls.book = Book.objects.create(title="1984")
@@ -198,7 +274,7 @@ Preserving test database for alias 'default'...
 </section>
 
 <section>
-        <pre><code class="language-python">class IndexTests(TestCase):
+  <pre><code class="language-python">class IndexTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.book = Book.objects.create(title="1984")
@@ -219,8 +295,8 @@ Preserving test database for alias 'default'...
 </section>
 
 <section>
-    <h2>Step 4. Re-run tests</h2>
-        <pre><code class="language-console">$ ./manage.py test --keepdb example.core.tests.IndexTests
+  <h2>Step 4. Re-run tests</h2>
+  <pre><code class="language-console">$ ./manage.py test --keepdb example.core.tests.IndexTests
 Using existing test database for alias 'default'...
 System check identified no issues (0 silenced).
 ..
@@ -234,34 +310,34 @@ Preserving test database for alias 'default'...
 </section>
 
 <section>
-    <h1>Thank you! 🤗</h1>
-    <ul>
-        <li>Adam Johnson</li>
-        <li>@adamchainz on GitHub &amp; Twitter</li>
-        <li>me@adamj.eu</li>
-        <li><a href="https://github.com/adamchainz/talk-speed-up-your-tests-with-setuptestdata">github.com/adamchainz/talk-speed-up-your-tests-with-setuptestdata</a></li>
-    </ul>
+  <h1>Thank you! 🤗</h1>
+  <ul>
+    <li>Adam Johnson</li>
+    <li>@adamchainz on GitHub &amp; Twitter</li>
+    <li>me@adamj.eu</li>
+    <li><a href="https://github.com/adamchainz/talk-speed-up-your-tests-with-setuptestdata">github.com/adamchainz/talk-speed-up-your-tests-with-setuptestdata</a></li>
+  </ul>
 </section>
 
-            </div>
-        </div>
+      </div>
+    </div>
 
-        <script src="dist/reveal.js"></script>
-        <script src="plugin/highlight/highlight.js"></script>
-        <script>
-            // More info about initialization & config:
-            // - https://revealjs.com/initialization/
-            // - https://revealjs.com/config/
-            Reveal.initialize({
-                hash: true,
+    <script src="dist/reveal.js"></script>
+    <script src="plugin/highlight/highlight.js"></script>
+    <script>
+      // More info about initialization & config:
+      // - https://revealjs.com/initialization/
+      // - https://revealjs.com/config/
+      Reveal.initialize({
+          hash: true,
 
-                controls: false,
-                center: false,
-                progress: false,
+          controls: false,
+          center: false,
+          progress: false,
 
-                // Learn about plugins: https://revealjs.com/plugins/
-                plugins: [ RevealHighlight ]
-            });
-        </script>
-    </body>
+          // Learn about plugins: https://revealjs.com/plugins/
+          plugins: [ RevealHighlight ]
+      });
+    </script>
+  </body>
 </html>

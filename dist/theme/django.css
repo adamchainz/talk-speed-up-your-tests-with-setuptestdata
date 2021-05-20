@@ -109,6 +109,9 @@ section.has-light-background, section.has-light-background h1, section.has-light
 .reveal ol {
   list-style-type: decimal; }
 
+.reveal ol ol {
+  list-style-type: lower-roman; }
+
 .reveal ul {
   list-style-type: disc; }
 
