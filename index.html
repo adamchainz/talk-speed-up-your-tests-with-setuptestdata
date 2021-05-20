@@ -1,0 +1,267 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+        <title>Speed Up Your Tests with setUpTestData</title>
+
+        <link rel="stylesheet" href="dist/reset.css">
+        <link rel="stylesheet" href="dist/reveal.css">
+        <link rel="stylesheet" href="dist/theme/django.css" id="theme">
+
+        <!-- <link rel="stylesheet" href="css/theme/django.css"> -->
+
+        <!-- Theme used for syntax highlighted code -->
+        <link rel="stylesheet" href="plugin/highlight/monokai.css" id="highlight-theme">
+
+        <!-- Printing and PDF exports -->
+        <script>
+            var link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.type = 'text/css';
+            link.href = window.location.search.match(/print-pdf/gi) ? 'css/print/pdf.css' : 'css/print/paper.css';
+            document.getElementsByTagName('head')[0].appendChild(link);
+        </script>
+    </head>
+    <body>
+        <div class="reveal">
+            <div class="slides">
+
+<section>
+    <h1>Speed Up Your Tests with setUpTestData</h1>
+    <h2>Adam Johnson</h2>
+</section>
+
+<section>
+    <h2>Five parts</h2>
+    <ol>
+        <li>unittest’s <code>setUp*</code> &amp; <code>tearDown*</code> methods</li>
+        <li>Django’s unittest extensions</li>
+        <li><code>setUpTestData()</code></li>
+        <li>Django 3.2’s <code>setUpTestData()</code> isolation</li>
+        <li>How to convert a <code>TestCase</code> to use <code>setUpTestData()</code></li>
+    </ol>
+</section>
+
+<section>
+    <h2>1. unittest’s <code>setUp*</code> &amp; <code>tearDown*</code> methods</h2>
+</section>
+
+<!--
+* how setup, teardown, setupclass, and teardown class work
+    * setup
+    * teardown -> addcleanup
+    * setupclass -> no class-level cleanup (much rarer)
+    * diagram of lifecycle
+-->
+
+<section>
+    <h2>2. Django’s unittest extensions</h2>
+</section>
+
+<!--
+* django's extensions
+    * simpletestcase, transactiontestcase, testcase
+    * transactiontestcase : clears database between tests
+    * testcase: uses transactions to undo database changes between tests (much faster)
+    * testcase's two levels of transaction
+        * transaction setupclass -> teardownclass
+        * transaction setup -> teardown
+        * diagram
+-->
+
+<section>
+    <h2>3. <code>setUpTestData()</code></h2>
+</section>
+
+<!--
+* testcase.setuptestdata
+    * called after setupclass phase
+    * addded ...
+    * example test case walkthrough
+        * before with setup, diagram
+        * after with setupclass, diagram
+        * N -> 1 behaviour
+-->
+
+<section>
+    <h2>4. Django 3.2’s <code>setUpTestData()</code> isolation</h2>
+</section>
+
+<!--
+* the big caveat
+    * in memory versus in database
+    * django-testdata, django 3.2
+-->
+
+<section>
+    <h2>5. How to convert a <code>TestCase</code> to use <code>setUpTestData()</code></h2>
+</section>
+
+<section>
+    <ul>
+        <li>Four steps</li>
+        <li>See blog post: <strong>How to convert a TestCase from setUp() to setUpTestData()</strong></li>
+    </ul>
+</section>
+
+<section>
+        <pre><code class="language-python">class IndexTests(TestCase):
+    def setUp(self):
+        self.book = Book.objects.create(title="1984")
+        self.user = User.objects.create_user(
+            username="tester",
+            email="test@example.com",
+        )
+        self.client.force_login(self.user)
+
+    def test_one(self):
+        ...
+
+    def test_two(self):
+        ...
+</code></pre>
+</section>
+
+<section>
+    <h2>Step 0. Install django-testdata on Django &lt; 3.2</h2>
+</section>
+
+<section>
+    <h2>Step 1. Run the target test case</h2>
+        <pre><code class="language-console">$ ./manage.py test --keepdb example.core.tests.IndexTests
+Using existing test database for alias 'default'...
+System check identified no issues (0 silenced).
+..
+-------------------------------------------------------------
+Ran 2 tests in 0.015s
+
+OK
+Preserving test database for alias 'default'...
+</code></pre>
+</section>
+
+<section>
+    <h2>Step 2. Add a stub <code>setUpTestData()</code></h2>
+        <pre><code class="language-diff"> class IndexTests(TestCase):
++    @classmethod
++    def setUpTestData(cls):
++
+     def setUp(self):
+         self.book = Book.objects.create(title="1984")
+         self.user = User.objects.create_user(
+</code></pre>
+</section>
+
+<section>
+    <p>On Django &lt; 3.2:</p>
+        <pre><code class="language-diff">+from testdata import wrap_testdata
+
+ from example.core.models import Book
+
+
+ class IndexTests(TestCase):
++    @classmethod
++    @wrap_testdata
++    def setUpTestData(cls):
++
+     def setUp(self):
+         self.book = Book.objects.create(title="1984")
+         self.user = User.objects.create_user(
+</code></pre>
+</section>
+
+<section>
+    <h2>Step 3. Move data creation from <code>setUp()</code> to <code>setUpTestData()</code></h2>
+</section>
+
+<section>
+        <pre><code class="language-diff">class IndexTests(TestCase):
+     @classmethod
+     def setUpTestData(cls):
++        cls.book = Book.objects.create(title="1984")
++        cls.user = User.objects.create_user(
++            username="tester",
++            email="test@example.com",
++        )
+
+     def setUp(self):
+-        self.book = Book.objects.create(title="1984")
+-        self.user = User.objects.create_user(
+-            username="tester", email="test@example.com"
+-        )
+         self.client.force_login(self.user)
+
+     def test_one(self):
+</code></pre>
+</section>
+
+<section>
+        <pre><code class="language-python">class IndexTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.book = Book.objects.create(title="1984")
+        cls.user = User.objects.create_user(
+            username="tester",
+            email="test@example.com",
+        )
+
+    def setUp(self):
+        self.client.force_login(self.user)
+
+    def test_one(self):
+        ...
+
+    def test_two(self):
+        ...
+</code></pre>
+</section>
+
+<section>
+    <h2>Step 4. Re-run tests</h2>
+        <pre><code class="language-console">$ ./manage.py test --keepdb example.core.tests.IndexTests
+Using existing test database for alias 'default'...
+System check identified no issues (0 silenced).
+..
+-------------------------------------------------------------
+Ran 2 tests in 0.012s
+
+OK
+Preserving test database for alias 'default'...
+</code></pre>
+    <p>Enjoy N ➡️ 1 performance gain</p>
+</section>
+
+<section>
+    <h1>Thank you! 🤗</h1>
+    <ul>
+        <li>Adam Johnson</li>
+        <li>@adamchainz on GitHub &amp; Twitter</li>
+        <li>me@adamj.eu</li>
+        <li><a href="https://github.com/adamchainz/talk-speed-up-your-tests-with-setuptestdata">github.com/adamchainz/talk-speed-up-your-tests-with-setuptestdata</a></li>
+    </ul>
+</section>
+
+            </div>
+        </div>
+
+        <script src="dist/reveal.js"></script>
+        <script src="plugin/highlight/highlight.js"></script>
+        <script>
+            // More info about initialization & config:
+            // - https://revealjs.com/initialization/
+            // - https://revealjs.com/config/
+            Reveal.initialize({
+                hash: true,
+
+                controls: false,
+                center: false,
+                progress: false,
+
+                // Learn about plugins: https://revealjs.com/plugins/
+                plugins: [ RevealHighlight ]
+            });
+        </script>
+    </body>
+</html>
