@@ -122,7 +122,7 @@
       <em>Per test:</em>
       <ol>
         <li><code>setUp()</code></li>
-        <li><em>test</em></li>
+        <li><em>run test</em></li>
         <li><code>tearDown()</code></li>
         <li><code>addCleanup()</code> functions</li>
       </ol>
@@ -133,43 +133,173 @@
 </section>
 
 <section>
-    <h2>2. Django’s unittest extensions</h2>
+  <h2>2. Django’s unittest extensions</h2>
 </section>
 
-<!--
-* django's extensions
-    * simpletestcase, transactiontestcase, testcase
-    * transactiontestcase : clears database between tests
-    * testcase: uses transactions to undo database changes between tests (much faster)
-    * testcase's two levels of transaction
-        * transaction setupclass -> teardownclass
-        * transaction setup -> teardown
-        * diagram
--->
+<section>
+  <p>
+    <code>unittest.TestCase</code><br>
+    ⬇️<br>
+    <code>SimpleTestCase</code><br>
+    ⬇️<br>
+    <code>TransactionTestCase</code><br>
+    ⬇️<br>
+    <code>TestCase</code><br>
+    (⬇️)<br>
+    (<code>LiveServerTestCase</code>)
+  </p>
+  </ul>
+</section>
+
+<section>
+  <h3><code>SimpleTestCase</code></h3>
+  <ul>
+    <li>Blocks DB access</li>
+    <li>Adds some assertion methods</li>
+    <li>Does Django’s own per-test setup <em>outside of</em> <code>setUp()</code></li>
+  </ul>
+</section>
+
+<section>
+  <h3><code>TransactionTestCase</code></h3>
+  <ul>
+    <li>Allows DB access</li>
+    <li>Rolls back DB’s by wiping and re-adding fixture data (slow)</li>
+    <li>Allows testing code using transactions</li>
+  </ul>
+</section>
+
+<section>
+  <h3><code>TestCase</code></h3>
+  <ul>
+    <li>Rolls back DB’s with <strong>per-class</strong> and <strong>per-test</strong> transactions</li>
+    <li><code>setUpClass()</code> calls <code>setUpTestData()</code></li>
+  </ul>
+</section>
+
+<section>
+  <h3><code>TestCase</code></h3>
+  <ol>
+    <li><code>setUpClass()</code>: tx begin</li>
+    <li><code>setUpClass()</code>: <code>setUpTestData()</code></li>
+    <li>
+      <em>Per test:</em>
+      <ol>
+        <li><code>_pre_setup()</code>: tx begin</li>
+        <li><em>run test</em></li>
+        <li><code>_post_teardown()</code>: tx rollback</li>
+      </ol>
+    </li>
+    <li><code>tearDownClass()</code>: tx rollback</li>
+  </ol>
+</section>
 
 <section>
   <h2>3. <code>setUpTestData()</code></h2>
 </section>
 
-<!--
-* testcase.setuptestdata
-    * called after setupclass phase
-    * addded ...
-    * example test case walkthrough
-        * before with setup, diagram
-        * after with setupclass, diagram
-        * N -> 1 behaviour
--->
+<section>
+  <ul>
+    <li><code>@classmethod</code></li>
+    <li>Called under <code>setUpClass()</code></li>
+    <li>Default empty so no need to call <code>super()</code></li>
+  </ul>
+</section>
+
+<section>
+  <pre><code class="language-python">class MyTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+      cls.book = Book.objects.create(title="1984")
+
+    ...
+</code></pre>
+</section>
+
+<section>
+  <ul>
+    <li>Data creation in <code>setUp()</code>: N times</li>
+    <li>Data creation in <code>setUpTestData()</code>: once</li>
+    <li>Easiest way to speed up tests</li>
+  </ul>
+</section>
 
 <section>
   <h2>4. Django 3.2’s <code>setUpTestData()</code> isolation</h2>
 </section>
 
-<!--
-* the big caveat
-    * in memory versus in database
-    * django-testdata, django 3.2
--->
+<section>
+  <pre><code class="language-python">class MyTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.book = Book.objects.create(title="Meditations")
+
+    def test_that_changes_title(self):
+        self.book.title = "Antifragile"
+
+    def test_that_reads_title_from_db(self):
+        db_title = Book.objects.get().title
+        assert db_title == "Meditations"
+
+    def test_that_reads_in_memory_title(self):
+        assert self.book.title == "Meditations"
+</code></pre>
+</section>
+
+<section>
+  <p><em>Django &lt; 3.2</em></p>
+  <pre><code class="language-console">$ ./manage.py test example.core.tests
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+.F.
+======================================================================
+FAIL: test_that_reads_in_memory_title (example.core.tests.MyTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/.../example/core/tests.py", line 19, in test_that_reads_in_memory_title
+    assert self.book.title == "Meditations"
+AssertionError
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.002s
+
+FAILED (failures=1)
+Destroying test database for alias 'default'...
+</code></pre>
+</section>
+
+<section>
+  <ul>
+    <li>Database changes rolled back by transaction</li>
+    <li>In-memory changes weren’t automatically rolled back</li>
+    <li>Docs told you to re-query for models in each test - slow and verbose</li>
+  </ul>
+</section>
+
+<section>
+  <p>django-testdata: automatic copying of <code>setUpTestData()</code> data</p>
+  <pre><code class="language-python">from testdata import wrap_testdata
+
+class MyTests(TestCase):
+    @classmethod
+    @wrap_testdata
+    def setUpTestData(cls):
+        cls.book = Book.objects.create(title="Meditations")
+
+    ...
+</code></pre>
+</section>
+
+<section>
+  <p>django-testdata merged in Django 3.2</p>
+    <pre><code class="language-python">class MyTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.book = Book.objects.create(title="Meditations")
+
+    ...
+  </code></pre>
+</section>
 
 <section>
   <h2>5. How to convert a <code>TestCase</code> to use <code>setUpTestData()</code></h2>
