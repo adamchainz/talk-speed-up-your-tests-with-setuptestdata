@@ -29,12 +29,12 @@
       <div class="slides">
 
 <section>
-  <h1>Speed Up Your Tests with setUpTestData</h1>
+  <h1>Speed Up Your Tests with <code>setUpTestData()</code></h1>
   <h2>Adam Johnson</h2>
 </section>
 
 <section>
-  <h2>Five part talk</h2>
+  <h2>🖐 Five part talk</h2>
   <ol>
     <li>unittest’s <code>setUp*</code> &amp; <code>tearDown*</code> methods</li>
     <li>Django’s unittest extensions</li>
@@ -45,17 +45,23 @@
 </section>
 
 <section>
-  <h2>1. unittest’s <code>setUp*</code> &amp; <code>tearDown*</code> methods</h2>
+  <h2>✍️ Based on my Blog &amp; Book</h2>
+  <img src="img/suydt-cover.png" style="width: 240px">
+  <p><strong><em>33% off</em></strong> during Djangocon Europe</p>
 </section>
 
 <section>
-  <ul>
-    <li>Per-test: <code>setUp()</code>, <code>tearDown()</code></li>
-    <li>Per-<code>TestCase</code>: <code>setUpClass()</code>, <code>tearDownClass()</code></li>
-  </ul>
+  <h1>🛠 Part One 🛠</h1>
+  <h2>unittest’s <code>setUp*</code> &amp; <code>tearDown*</code> methods</h2>
 </section>
 
 <section>
+  <p>🧪 Per-test: <code>setUp()</code>, <code>tearDown()</code></p>
+  <p>📦 Per-<code>TestCase</code>: <code>setUpClass()</code>, <code>tearDownClass()</code></p>
+</section>
+
+<section>
+  <p>🔍 <em>por exemplo:</em></p>
   <pre><code class="language-python">class MyTests(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -64,8 +70,8 @@
 
     @classmethod
     def tearDownClass(cls):
-        super().tearDownClass()
         cls.conn.close()
+        super().tearDownClass()
 
     def setUp(self):
         super().setUp()
@@ -78,7 +84,7 @@
 </section>
 
 <section>
-  <p><em>Robust use:</em></p>
+  <p>💪 <em>Robust use:</em></p>
   <pre><code class="language-python">class MyTests(TestCase):
   def setUp(self):
       super().setUp()
@@ -92,14 +98,13 @@
 </section>
 
 <section>
-  <p><em>...or:</em></p>
-  <ul>
-    <li><code>self.addCleanup(func)</code></li>
-    <li>Python 3.8+: <code>cls.addClassCleanup(func)</code></li>
-  </ul>
+  <p>💡 <em>...or:</em></p>
+  <p>🧪 <code>self.addCleanup(func)</code></p>
+  <p>📦 <code>cls.addClassCleanup(func)</code> - Python 3.8+</p>
 </section>
 
 <section>
+  <p>✍️<em>Terse &amp; </em>💪<em> Robust:</em></p>
   <pre><code class="language-python">class MyTests(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -115,7 +120,7 @@
 </section>
 
 <section>
-  <h3><code>TestCase</code> lifecycle</h3>
+  <h3>♻️ <code>TestCase</code> lifecycle</h3>
   <ol>
     <li><code>setUpClass()</code></li>
     <li>
@@ -133,7 +138,8 @@
 </section>
 
 <section>
-  <h2>2. Django’s unittest extensions</h2>
+  <h1>🏗 Part Two 🏗</h1>
+  <h2>Django’s unittest extensions</h2>
 </section>
 
 <section>
@@ -165,7 +171,7 @@
   <ul>
     <li>Allows DB access</li>
     <li>Rolls back DB’s by wiping and re-adding fixture data (slow)</li>
-    <li>Allows testing code using transactions</li>
+    <li>Use to test code that commits transactions</li>
   </ul>
 </section>
 
@@ -173,12 +179,13 @@
   <h3><code>TestCase</code></h3>
   <ul>
     <li>Rolls back DB’s with <strong>per-class</strong> and <strong>per-test</strong> transactions</li>
-    <li><code>setUpClass()</code> calls <code>setUpTestData()</code></li>
+    <li><code>setUpClass()</code> calls ✨<code>setUpTestData()</code>✨</li>
+    <li>(Many more features!)</li>
   </ul>
 </section>
 
 <section>
-  <h3><code>TestCase</code></h3>
+  <h3>♻️ Django’s <code>TestCase</code> lifecycle</h3>
   <ol>
     <li><code>setUpClass()</code>: tx begin</li>
     <li><code>setUpClass()</code>: <code>setUpTestData()</code></li>
@@ -195,18 +202,31 @@
 </section>
 
 <section>
-  <h2>3. <code>setUpTestData()</code></h2>
+  <h1>🚀 Part Three 🚀</h1>
+  <h2>✨<code>setUpTestData()</code>✨</h2>
 </section>
 
 <section>
+  <h2>So, <code>setUpTestData()</code></h2>
   <ul>
+    <li>Called by <code>setUpClass()</code></li>
     <li><code>@classmethod</code></li>
-    <li>Called under <code>setUpClass()</code></li>
-    <li>Default empty so no need to call <code>super()</code></li>
+    <li>Default empty - yours don’t need to call <code>super()</code></li>
   </ul>
 </section>
 
 <section>
+  <p>🥚 <em>Before:</em></p>
+  <pre><code class="language-python">class MyTests(TestCase):
+    def setUp(self):
+      self.book = Book.objects.create(title="1984")
+
+    ...
+</code></pre>
+</section>
+
+<section>
+  <p>🐓 <em>After:</em></p>
   <pre><code class="language-python">class MyTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -217,18 +237,22 @@
 </section>
 
 <section>
+  <h2>⚖️ Comparison</h2>
   <ul>
     <li>Data creation in <code>setUp()</code>: N times</li>
-    <li>Data creation in <code>setUpTestData()</code>: once</li>
-    <li>Easiest way to speed up tests</li>
+    <li>Data creation in <code>setUpTestData()</code>: ✨<strong><em>once</em></strong>✨</li>
   </ul>
+  <p></p>
+  <h2><span style="display:inline-block; transform: scale(-1, 1);">🏇</span> <em>Muito rápido!</em><span style="display:inline-block; transform: scale(-1, 1);">🏇</span></h2>
 </section>
 
 <section>
-  <h2>4. Django 3.2’s <code>setUpTestData()</code> isolation</h2>
+  <h1>📦 Part Four 📦</h1>
+  <h2>Django 3.2’s <code>setUpTestData()</code> isolation</h2>
 </section>
 
 <section>
+  <p>📚 <em>Take these tests:</em></p>
   <pre><code class="language-python">class MyTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -247,7 +271,7 @@
 </section>
 
 <section>
-  <p><em>Django &lt; 3.2</em></p>
+  <p>⚠️ <em>Django &lt; 3.2</em> ⚠️</p>
   <pre><code class="language-console">$ ./manage.py test example.core.tests
 Creating test database for alias 'default'...
 System check identified no issues (0 silenced).
@@ -271,13 +295,13 @@ Destroying test database for alias 'default'...
 <section>
   <ul>
     <li>Database changes rolled back by transaction</li>
-    <li>In-memory changes weren’t automatically rolled back</li>
-    <li>Docs told you to re-query for models in each test - slow and verbose</li>
+    <li>In-memory changes not rolled back</li>
+    <li>Docs: re-query in each test - slow and verbose 😢</li>
   </ul>
 </section>
 
 <section>
-  <p>django-testdata: automatic copying of <code>setUpTestData()</code> data</p>
+  <p>👉 django-testdata: automatic per-test copying</p>
   <pre><code class="language-python">from testdata import wrap_testdata
 
 class MyTests(TestCase):
@@ -291,7 +315,7 @@ class MyTests(TestCase):
 </section>
 
 <section>
-  <p>django-testdata merged in Django 3.2</p>
+  <p>🕊 django-testdata merged in Django 3.2 🕊</p>
     <pre><code class="language-python">class MyTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -299,20 +323,22 @@ class MyTests(TestCase):
 
     ...
   </code></pre>
+  <p>Thanks Simon Charette! 👍</p>
 </section>
 
 <section>
-  <h2>5. How to convert a <code>TestCase</code> to use <code>setUpTestData()</code></h2>
+  <h1>📋 Part Five 📋</h1>
+  <h2>How to convert a <code>TestCase</code> to use <code>setUpTestData()</code></h2>
 </section>
 
 <section>
-  <ul>
-    <li>Four steps</li>
-    <li>See blog post: <strong>How to convert a TestCase from setUp() to setUpTestData()</strong></li>
-  </ul>
+  <p style="text-align: left;">🍀 Four steps</p>
+  <p style="text-align: left;">✍️ Blog post: <strong>How to convert a TestCase from setUp() to setUpTestData()</strong></p>
+  <p style="text-align: left;">🔁 Repeat across code base for great gains</p>
 </section>
 
 <section>
+  <p>🔍 <em>por exemplo:</em></p>
   <pre><code class="language-python">class IndexTests(TestCase):
     def setUp(self):
         self.book = Book.objects.create(title="1984")
@@ -331,11 +357,12 @@ class MyTests(TestCase):
 </section>
 
 <section>
-  <h2>Step 0. Install django-testdata on Django &lt; 3.2</h2>
+  <p>0️⃣ Install django-testdata on Django &lt; 3.2</p>
+  <img class="r-stretch" src="img/django-testdata-pypi.png">
 </section>
 
 <section>
-  <h2>Step 1. Run the target test case</h2>
+  <p>1️⃣ Run the target test case</p>
   <pre><code class="language-console">$ ./manage.py test --keepdb example.core.tests.IndexTests
 Using existing test database for alias 'default'...
 System check identified no issues (0 silenced).
@@ -346,10 +373,11 @@ Ran 2 tests in 0.015s
 OK
 Preserving test database for alias 'default'...
 </code></pre>
+  <p>✅✅</p>
 </section>
 
 <section>
-  <h2>Step 2. Add a stub <code>setUpTestData()</code></h2>
+  <p>2️⃣ Add a stub <code>setUpTestData()</code></p>
   <pre><code class="language-diff"> class IndexTests(TestCase):
 +    @classmethod
 +    def setUpTestData(cls):
@@ -361,7 +389,7 @@ Preserving test database for alias 'default'...
 </section>
 
 <section>
-  <p>On Django &lt; 3.2:</p>
+  <p>2️⃣ ...on Django &lt; 3.2:</p>
   <pre><code class="language-diff">+from testdata import wrap_testdata
 
  from example.core.models import Book
@@ -379,10 +407,7 @@ Preserving test database for alias 'default'...
 </section>
 
 <section>
-  <h2>Step 3. Move data creation from <code>setUp()</code> to <code>setUpTestData()</code></h2>
-</section>
-
-<section>
+  <p>3️⃣ Move data creation</p>
   <pre><code class="language-diff">class IndexTests(TestCase):
      @classmethod
      def setUpTestData(cls):
@@ -404,6 +429,7 @@ Preserving test database for alias 'default'...
 </section>
 
 <section>
+  <p>3️⃣ Move data creation</p>
   <pre><code class="language-python">class IndexTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -425,7 +451,7 @@ Preserving test database for alias 'default'...
 </section>
 
 <section>
-  <h2>Step 4. Re-run tests</h2>
+  <p>4️⃣ Re-run tests</p>
   <pre><code class="language-console">$ ./manage.py test --keepdb example.core.tests.IndexTests
 Using existing test database for alias 'default'...
 System check identified no issues (0 silenced).
@@ -436,7 +462,8 @@ Ran 2 tests in 0.012s
 OK
 Preserving test database for alias 'default'...
 </code></pre>
-    <p>Enjoy N ➡️ 1 performance gain</p>
+  <p>✅✅</p>
+  <p>🎉 Enjoy N ➡️ 1 performance gain</p>
 </section>
 
 <section>
